@@ -18,6 +18,25 @@ app.use(bodyParser.json({ limit: "10gb" }));
 
 const FORBIDDEN_CARACS = ["|", "\n", "\\"];
 
+let lastTouch = new Date().getTime();
+
+///
+/// Get last touch
+///
+app.get("/lastTouch", (req, res) => {
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+
+  if (!haveAccess(token)) {
+    res.statusCode = 401;
+    res.end();
+    return;
+  }
+  res.setHeader("Content-Type", "application/json");
+
+  res.statusCode = 200;
+  res.json({ lastTouch });
+});
+
 ///
 ///Create folders
 ///
@@ -95,9 +114,9 @@ app.delete("/file", async (req, res) => {
   }
   const body = req.body;
 
-  if (!body.names) {
+  if (!body.names || !body.lastTouch) {
     res.statusCode = 400;
-    res.end("Body must be of type : {names:[pathString]}");
+    res.end("Body must be of type : {names:[pathString];lastTouch:number}");
     return;
   }
 
@@ -119,6 +138,8 @@ app.delete("/file", async (req, res) => {
       });
     });
   }
+
+  lastTouch = parseInt(body.lastTouch);
 
   if (errors.length > 0) {
     res.setHeader("Content-Type", "application/json");
@@ -178,7 +199,7 @@ app.post(
   "/file",
   fileUpload({
     useTempFiles: true,
-    tempFileDir: "/home/luc/Documents/Custom Cloud/CloudEnv/",
+    tempFileDir: "/home/luc/Documents/Custom_Cloud/CloudEnv/",
   }),
   async (req, res) => {
     const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
@@ -193,13 +214,14 @@ app.post(
 
     const files = req.files;
     const location = req.body.location;
+    const bodyLastTouch = req.body.lastTouch;
 
-    if (!files || location == null) {
+    if (!files || location == null || bodyLastTouch == null) {
       resetTempFiles(ROOT);
 
       res.statusCode = 400;
       res.end(
-        "Body must be of type : {location:pathString} and must have files"
+        "Body must be of type : {location:pathString;lasTouch:number} and must have files"
       );
       return;
     }
@@ -250,6 +272,9 @@ app.post(
       });
       return;
     }
+
+    // Set lastTouch
+    lastTouch = parseInt(bodyLastTouch);
 
     res.statusCode = 200;
     res.json({
