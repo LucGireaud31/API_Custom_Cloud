@@ -18,7 +18,45 @@ app.use(bodyParser.json({ limit: "10gb" }));
 
 const FORBIDDEN_CARACS = ["|", "\n", "\\"];
 
+// Variables
 let lastTouch = new Date().getTime();
+let currentDevice = null;
+
+///
+/// Begin transact
+///
+app.post("/beginTransact", (req, res) => {
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+
+  if (!haveAccess(token)) {
+    res.statusCode = 401;
+    res.end();
+    return;
+  }
+
+  currentDevice = token;
+
+  res.statusCode = 200;
+  res.end("Ok");
+});
+
+///
+/// End transaction
+///
+app.post("/endTransact", (req, res) => {
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+
+  if (!haveAccess(token)) {
+    res.statusCode = 401;
+    res.end();
+    return;
+  }
+
+  currentDevice = null;
+
+  res.statusCode = 200;
+  res.end("Ok");
+});
 
 ///
 /// Get last touch
@@ -45,6 +83,11 @@ app.put("/folder", async (req, res) => {
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
+    res.end();
+    return;
+  }
+  if (currentDevice != null && currentDevice != token) {
+    res.statusCode = 409;
     res.end();
     return;
   }
@@ -112,6 +155,11 @@ app.delete("/file", async (req, res) => {
     res.end();
     return;
   }
+  if (currentDevice != null && currentDevice != token) {
+    res.statusCode = 409;
+    res.end();
+    return;
+  }
   const body = req.body;
 
   if (!body.names || !body.lastTouch) {
@@ -168,6 +216,13 @@ app.get("/folder", (req, res) => {
     res.end();
     return;
   }
+  console.log(currentDevice, token);
+
+  if (currentDevice != null && currentDevice != token) {
+    res.statusCode = 409;
+    res.end();
+    return;
+  }
   const body = req.body;
 
   if (!body.name) {
@@ -211,6 +266,12 @@ app.post(
       res.end();
       return;
     }
+    if (currentDevice != null && currentDevice != token) {
+      resetTempFiles(ROOT);
+      res.statusCode = 409;
+      res.end();
+      return;
+    }
 
     const files = req.files;
     const location = req.body.location;
@@ -249,7 +310,7 @@ app.post(
 
       const tempPath = formatPathWithSpaces(file.tempFilePath);
       const newPath = formatPathWithSpaces(parentPath + realName);
-      console.log("run :", `mv ${tempPath} ${newPath}`);
+
       await new Promise((resolve) => {
         exec(`mv ${tempPath} ${newPath}`, (err, _, stderr) => {
           if (err == null) {
@@ -293,6 +354,11 @@ app.get("/file", (req, res) => {
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
+    res.end();
+    return;
+  }
+  if (currentDevice != null && currentDevice != token) {
+    res.statusCode = 409;
     res.end();
     return;
   }

@@ -1,5 +1,5 @@
 const haveAccess = (token) => {
-  return token == process.env.TOKEN;
+  return process.env.TOKENS.includes(token);
 };
 
 module.exports = haveAccess;
