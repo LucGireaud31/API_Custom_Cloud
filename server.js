@@ -5,7 +5,7 @@ const { exec } = require("child_process");
 const fileUpload = require("express-fileupload");
 
 const haveAccess = require("./src/access");
-const getFolder = require("./src/getFolder");
+const { getAllFiles } = require("./src/getFolder");
 const { formatPathWithSpaces, resetTempFiles } = require("./src/utils");
 
 const app = express();
@@ -25,11 +25,17 @@ let currentDevice = null;
 ///
 /// Begin transact
 ///
-app.post("/beginTransact", (req, res) => {
+app.post("/beginTransaction", (req, res) => {
   const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
+    res.end();
+    return;
+  }
+
+  if (currentDevice != null && currentDevice != token) {
+    res.statusCode = 409;
     res.end();
     return;
   }
@@ -43,7 +49,7 @@ app.post("/beginTransact", (req, res) => {
 ///
 /// End transaction[1] ?? " "
 ///
-app.post("/endTransact", (req, res) => {
+app.post("/endTransaction", (req, res) => {
   const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
@@ -233,18 +239,24 @@ app.get("/folder", (req, res) => {
 
   res.setHeader("Content-Type", "application/json");
   // Run shell command
-  exec("ls -R -l --full-time " + ROOT + body.name, (err, stdout, stderr) => {
-    if (err != null) {
-      res.statusCode = 500;
 
-      res.end(JSON.stringify({ error: stderr }));
-      return;
-    }
-    const result = getFolder(stdout);
+  const allFiles = getAllFiles(ROOT + body.name, []);
+  console.log(allFiles);
+  res.statusCode = 200;
+  res.json(allFiles);
 
-    res.statusCode = 200;
-    res.json(result);
-  });
+  // exec("ls -R -l --full-time " + ROOT + body.name, (err, stdout, stderr) => {
+  //   if (err != null) {
+  //     res.statusCode = 500;
+
+  //     res.end(JSON.stringify({ error: stderr }));
+  //     return;
+  //   }
+  //   const result = getFolder(stdout);
+
+  //   res.statusCode = 200;
+  //   res.json(result);
+  // });
 });
 
 ///
