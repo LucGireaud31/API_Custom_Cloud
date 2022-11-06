@@ -3,7 +3,7 @@ const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const { exec } = require("child_process");
 const fileUpload = require("express-fileupload");
-
+const fs = require("fs");
 const haveAccess = require("./src/access");
 const { getAllFiles } = require("./src/getFolder");
 const { formatPathWithSpaces, resetTempFiles } = require("./src/utils");
@@ -222,7 +222,6 @@ app.get("/folder", (req, res) => {
     res.end();
     return;
   }
-  console.log(currentDevice, token);
 
   if (currentDevice != null && currentDevice != token) {
     res.statusCode = 409;
@@ -241,7 +240,7 @@ app.get("/folder", (req, res) => {
   // Run shell command
 
   const allFiles = getAllFiles(ROOT + body.name, []);
-  console.log(allFiles);
+
   res.statusCode = 200;
   res.json(allFiles);
 
@@ -325,6 +324,7 @@ app.post(
 
       await new Promise((resolve) => {
         exec(`mv ${tempPath} ${newPath}`, (err, _, stderr) => {
+          fs.utimesSync(newPath, bodyLastTouch, bodyLastTouch);
           if (err == null) {
             insertedFiles += 1;
           } else {
