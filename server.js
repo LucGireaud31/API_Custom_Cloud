@@ -199,7 +199,11 @@ app.delete("/file", async (req, res) => {
         resolve();
       });
     });
+
+    //
   }
+  // Delete empty directories
+  exec(`find ${ROOT} -type d -empty -delete`);
 
   lastTouch = parseInt(body.lastTouch);
 
