@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
-const { exec } = require("child_process");
+const { exec, execSync } = require("child_process");
 const fileUpload = require("express-fileupload");
 const fs = require("fs");
 const { haveAccess } = require("./src/access");
@@ -222,7 +222,7 @@ app.delete("/file", async (req, res) => {
 ///
 /// Get folder content recursively
 ///
-app.get("/folder", (req, res) => {
+app.post("/folder", (req, res) => {
   const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
@@ -240,7 +240,7 @@ app.get("/folder", (req, res) => {
 
   if (!body.name) {
     res.statusCode = 400;
-    res.end("Body must be of type : {name:pathString}");
+    res.end("Body must be of type : {name:pathString}, received :", body?.name);
     return;
   }
 
@@ -251,19 +251,6 @@ app.get("/folder", (req, res) => {
 
   res.statusCode = 200;
   res.json(allFiles);
-
-  // exec("ls -R -l --full-time " + ROOT + body.name, (err, stdout, stderr) => {
-  //   if (err != null) {
-  //     res.statusCode = 500;
-
-  //     res.end(JSON.stringify({ error: stderr }));
-  //     return;
-  //   }
-  //   const result = getFolder(stdout);
-
-  //   res.statusCode = 200;
-  //   res.json(result);
-  // });
 });
 
 ///
@@ -323,6 +310,9 @@ app.post(
     const errors = [];
 
     let insertedFiles = 0;
+
+    // Create parent directory in case of doesn't exist
+    execSync(`mkdir -p ${parentPath}`);
 
     for (const file of Object.values(files)) {
       const realName = file.name;
