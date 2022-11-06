@@ -4,7 +4,7 @@ const dotenv = require("dotenv");
 const { exec } = require("child_process");
 const fileUpload = require("express-fileupload");
 const fs = require("fs");
-const haveAccess = require("./src/access");
+const { haveAccess } = require("./src/access");
 const { getAllFiles } = require("./src/getFolder");
 const { formatPathWithSpaces, resetTempFiles } = require("./src/utils");
 
@@ -12,15 +12,17 @@ const app = express();
 const port = process.env.PORT || 3000;
 dotenv.config({ path: "./.env" });
 
-const ROOT = process.env.ROOT;
-
 app.use(bodyParser.json({ limit: "10gb" }));
 
+const ROOT = process.env.ROOT;
 const FORBIDDEN_CARACS = ["|", "\n", "\\"];
+const TRANSACTION_TIMEOUT = 1_800_000; // 30 min
 
 // Variables
 let lastTouch = new Date().getTime();
+
 let currentDevice = null;
+let currentDeviceLastChange = new Date().getTime();
 
 ///
 /// Begin transact
@@ -34,13 +36,18 @@ app.post("/beginTransaction", (req, res) => {
     return;
   }
 
-  if (currentDevice != null && currentDevice != token) {
+  if (
+    currentDevice != null &&
+    currentDevice != token &&
+    new Date().getTime() - currentDeviceLastChange <= TRANSACTION_TIMEOUT
+  ) {
     res.statusCode = 409;
     res.end();
     return;
   }
 
   currentDevice = token;
+  currentDeviceLastChange = new Date().getTime();
 
   res.statusCode = 200;
   res.end("Ok");
@@ -59,6 +66,7 @@ app.post("/endTransaction", (req, res) => {
   }
 
   currentDevice = null;
+  currentDeviceLastChange = new Date().getTime();
 
   res.statusCode = 200;
   res.end("Ok");
