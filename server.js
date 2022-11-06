@@ -26,7 +26,7 @@ let currentDevice = null;
 /// Begin transact
 ///
 app.post("/beginTransact", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
@@ -41,10 +41,10 @@ app.post("/beginTransact", (req, res) => {
 });
 
 ///
-/// End transaction
+/// End transaction[1] ?? " "
 ///
 app.post("/endTransact", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
@@ -62,7 +62,7 @@ app.post("/endTransact", (req, res) => {
 /// Get last touch
 ///
 app.get("/lastTouch", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
@@ -79,7 +79,7 @@ app.get("/lastTouch", (req, res) => {
 ///Create folders
 ///
 app.put("/folder", async (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
@@ -148,7 +148,7 @@ app.put("/folder", async (req, res) => {
 ///Delete folders or files
 ///
 app.delete("/file", async (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
@@ -209,7 +209,7 @@ app.delete("/file", async (req, res) => {
 /// Get folder content recursively
 ///
 app.get("/folder", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
@@ -257,7 +257,7 @@ app.post(
     tempFileDir: "/home/luc/Documents/Custom_Cloud/CloudEnv/",
   }),
   async (req, res) => {
-    const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
     if (!haveAccess(token)) {
       resetTempFiles(ROOT);
@@ -350,7 +350,7 @@ app.post(
 // Get file
 ////
 app.get("/file", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? "";
+  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
     res.statusCode = 401;
