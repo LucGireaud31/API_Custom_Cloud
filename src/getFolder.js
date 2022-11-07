@@ -12,7 +12,7 @@ function getAllFiles(dirPath, arrayOfFiles) {
     } else {
       const fileName = path.join(dirPath, "/", file);
       arrayOfFiles.push({
-        fileName: fileName.split(process.env.ROOT)[1],
+        fileName: fileName.split(process.env.ROOT)[1].replaceAll("#", " "),
         lastDate: getFileLastDate(fileName),
       });
     }

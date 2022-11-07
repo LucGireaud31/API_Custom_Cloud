@@ -15,7 +15,7 @@ dotenv.config({ path: "./.env" });
 app.use(bodyParser.json({ limit: "10gb" }));
 
 const ROOT = process.env.ROOT;
-const FORBIDDEN_CARACS = ["|", "&", "\n", "\\"];
+const FORBIDDEN_CARACS = ["|", "\n", "\\"];
 const TRANSACTION_TIMEOUT = 1_800_000; // 30 min
 
 // Variables
@@ -127,8 +127,9 @@ app.put("/folder", async (req, res) => {
   let createdFolders = 0;
 
   for (const folderName of body.names) {
-    const folderNameFormatted =
-      folderName[0] == "/" ? folderName.substring(1) : folderName;
+    const folderNameFormatted = (
+      folderName[0] == "/" ? folderName.substring(1) : folderName
+    ).replaceAll(" ", "#");
 
     await new Promise((resolve) => {
       exec("mkdir " + ROOT + folderNameFormatted, (err, stdout, stderr) => {
@@ -186,8 +187,9 @@ app.delete("/file", async (req, res) => {
   const errors = [];
 
   for (const fileName of body.names) {
-    const fileNameFormatted =
-      fileName[0] == "/" ? fileName.substring(1) : fileName;
+    const fileNameFormatted = (
+      fileName[0] == "/" ? fileName.substring(1) : fileName
+    ).replaceAll(" ", "#");
 
     await new Promise((resolve) => {
       exec(
@@ -254,7 +256,7 @@ app.post("/folder", (req, res) => {
   res.setHeader("Content-Type", "application/json");
   // Run shell command
 
-  const allFiles = getAllFiles(ROOT + body.name, []);
+  const allFiles = getAllFiles(ROOT + body.name.replaceAll(" ", "#"), []);
 
   res.statusCode = 200;
   res.json(allFiles);
@@ -287,7 +289,7 @@ app.post(
     }
 
     const files = req.files;
-    const location = req.body.location;
+    const location = req.body.location?.replaceAll(" ", "#");
     const bodyLastTouch = req.body.lastTouch;
     if (!files || location == null || bodyLastTouch == null) {
       resetTempFiles(ROOT);
@@ -390,9 +392,7 @@ app.post("/file-download", (req, res) => {
     return;
   }
 
-  const filePath = (ROOT + body.name)
-    .replaceAll("\\ ", " ")
-    .replaceAll("//", "/");
+  const filePath = (ROOT + body.name).replaceAll(" ", "#");
 
   const fileStats = fs.statSync(filePath);
 
