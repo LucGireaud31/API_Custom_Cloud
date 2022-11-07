@@ -341,12 +341,19 @@ app.post(
       const files = req.files;
       const location = req.body.location?.replaceAll(" ", "#");
       const bodyLastTouch = req.body.lastTouch;
-      if (!files || location == null || bodyLastTouch == null) {
+      const serverLastTouch = req.body.serverLastTouch;
+
+      if (
+        !files ||
+        location == null ||
+        bodyLastTouch == null ||
+        serverLastTouch == null
+      ) {
         resetTempFiles(ROOT);
 
         res.statusCode = 400;
         res.end(
-          "Body must be of type : {location:pathString;lasTouch:number} and must have files"
+          "Body must be of type : {location:pathString;lastTouch:number;serverLastTouch:number} and must have files"
         );
         return;
       }
@@ -368,7 +375,7 @@ app.post(
       const errors = [];
       let insertedFiles = 0;
 
-      const lastTouchDate = new Date(parseInt(bodyLastTouch));
+      const lastTouchDate = new Date(parseInt(serverLastTouch));
 
       // Create parent directory in case of doesn't exist
       execSync(`mkdir -p ${parentPath}`);
