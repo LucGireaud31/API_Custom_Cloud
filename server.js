@@ -15,7 +15,7 @@ dotenv.config({ path: "./.env" });
 app.use(bodyParser.json({ limit: "10gb" }));
 
 const ROOT = process.env.ROOT;
-const FORBIDDEN_CARACS = ["|", "\n", "\\"];
+const FORBIDDEN_CARACS = ["|", "#", "\n", "\\"];
 const TRANSACTION_TIMEOUT = 1_800_000; // 30 min
 
 // Variables
