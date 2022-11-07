@@ -53,7 +53,7 @@ app.post("/beginTransaction", (req, res) => {
     res.statusCode = 200;
     res.end("Ok");
   } catch (err) {
-    fs.writeFileSync("./lastError", err.toString());
+    fs.writeFileSync("./lastError", "/beginTransaction " + err.toString());
     res.statusCode = 500;
     res.end();
   }
@@ -78,7 +78,7 @@ app.post("/endTransaction", (req, res) => {
     res.statusCode = 200;
     res.end("Ok");
   } catch (err) {
-    fs.writeFileSync("./lastError", err.toString());
+    fs.writeFileSync("./lastError", "/endTransaction " + err.toString());
     res.statusCode = 500;
     res.end();
   }
@@ -101,7 +101,7 @@ app.get("/lastTouch", (req, res) => {
     res.statusCode = 200;
     res.json({ lastTouch });
   } catch (err) {
-    fs.writeFileSync("./lastError", err.toString());
+    fs.writeFileSync("./lastError", "/lastTouch " + err.toString());
     res.statusCode = 500;
     res.end();
   }
@@ -177,7 +177,7 @@ app.put("/folder", async (req, res) => {
       createdFolders: createdFolders + "/" + body.names.length,
     });
   } catch (err) {
-    fs.writeFileSync("./lastError", err.toString());
+    fs.writeFileSync("./lastError", "put /folder " + err.toString());
     res.statusCode = 500;
     res.end();
   }
@@ -250,7 +250,7 @@ app.delete("/file", async (req, res) => {
       deleted: deleted + "/" + body.names.length,
     });
   } catch (err) {
-    fs.writeFileSync("./lastError", err.toString());
+    fs.writeFileSync("./lastError", "delete /file " + err.toString());
     res.statusCode = 500;
     res.end();
   }
@@ -288,12 +288,24 @@ app.post("/folder", (req, res) => {
     res.setHeader("Content-Type", "application/json");
     // Run shell command
 
-    const allFiles = getAllFiles(ROOT + body.name.replaceAll(" ", "#"), []);
+    try {
+      const allFiles = getAllFiles(
+        (ROOT + body.name.replaceAll(" ", "#")).replaceAll("//", "/"),
+        []
+      );
 
-    res.statusCode = 200;
-    res.json(allFiles);
+      res.statusCode = 200;
+      res.json(allFiles);
+    } catch (err) {
+      fs.writeFileSync(
+        "./lastError",
+        "post /folder getAllFiles:" + err.toString()
+      );
+      res.statusCode = 500;
+      res.end();
+    }
   } catch (err) {
-    fs.writeFileSync("./lastError", err.toString());
+    fs.writeFileSync("./lastError", "post /folder :" + err.toString());
     res.statusCode = 500;
     res.end();
   }
@@ -401,7 +413,7 @@ app.post(
 
       return;
     } catch (err) {
-      fs.writeFileSync("./lastError", err.toString());
+      fs.writeFileSync("./lastError", "post /file-upload " + err.toString());
       res.statusCode = 500;
       res.end();
     }
@@ -443,7 +455,7 @@ app.post("/file-download", (req, res) => {
     res.statusMessage = Math.max(fileStats.mtime, fileStats.ctime);
     res.sendFile(filePath);
   } catch (err) {
-    fs.writeFileSync("./lastError", err.toString());
+    fs.writeFileSync("./lastError", "post /file-download " + err.toString());
     res.statusCode = 500;
     res.end();
   }
