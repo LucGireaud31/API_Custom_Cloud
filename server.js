@@ -28,238 +28,275 @@ let currentDeviceLastChange = new Date().getTime();
 /// Begin transact
 ///
 app.post("/beginTransaction", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+  try {
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-  if (!haveAccess(token)) {
-    res.statusCode = 401;
+    if (!haveAccess(token)) {
+      res.statusCode = 401;
+      res.end();
+      return;
+    }
+
+    if (
+      currentDevice != null &&
+      currentDevice != token &&
+      new Date().getTime() - currentDeviceLastChange <= TRANSACTION_TIMEOUT
+    ) {
+      res.statusCode = 409;
+      res.end();
+      return;
+    }
+
+    currentDevice = token;
+    currentDeviceLastChange = new Date().getTime();
+
+    res.statusCode = 200;
+    res.end("Ok");
+  } catch (err) {
+    fs.writeFileSync("./lastError", err.toString());
+    res.statusCode = 500;
     res.end();
-    return;
   }
-
-  if (
-    currentDevice != null &&
-    currentDevice != token &&
-    new Date().getTime() - currentDeviceLastChange <= TRANSACTION_TIMEOUT
-  ) {
-    res.statusCode = 409;
-    res.end();
-    return;
-  }
-
-  currentDevice = token;
-  currentDeviceLastChange = new Date().getTime();
-
-  res.statusCode = 200;
-  res.end("Ok");
 });
 
 ///
 /// End transaction[1] ?? " "
 ///
 app.post("/endTransaction", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+  try {
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-  if (!haveAccess(token)) {
-    res.statusCode = 401;
+    if (!haveAccess(token)) {
+      res.statusCode = 401;
+      res.end();
+      return;
+    }
+
+    currentDevice = null;
+    currentDeviceLastChange = new Date().getTime();
+
+    res.statusCode = 200;
+    res.end("Ok");
+  } catch (err) {
+    fs.writeFileSync("./lastError", err.toString());
+    res.statusCode = 500;
     res.end();
-    return;
   }
-
-  currentDevice = null;
-  currentDeviceLastChange = new Date().getTime();
-
-  res.statusCode = 200;
-  res.end("Ok");
 });
 
 ///
 /// Get last touch
 ///
 app.get("/lastTouch", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+  try {
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-  if (!haveAccess(token)) {
-    res.statusCode = 401;
+    if (!haveAccess(token)) {
+      res.statusCode = 401;
+      res.end();
+      return;
+    }
+    res.setHeader("Content-Type", "application/json");
+
+    res.statusCode = 200;
+    res.json({ lastTouch });
+  } catch (err) {
+    fs.writeFileSync("./lastError", err.toString());
+    res.statusCode = 500;
     res.end();
-    return;
   }
-  res.setHeader("Content-Type", "application/json");
-
-  res.statusCode = 200;
-  res.json({ lastTouch });
 });
 
 ///
 ///Create folders
 ///
 app.put("/folder", async (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+  try {
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-  if (!haveAccess(token)) {
-    res.statusCode = 401;
-    res.end();
-    return;
-  }
-  if (currentDevice != null && currentDevice != token) {
-    res.statusCode = 409;
-    res.end();
-    return;
-  }
-  const body = req.body;
+    if (!haveAccess(token)) {
+      res.statusCode = 401;
+      res.end();
+      return;
+    }
+    if (currentDevice != null && currentDevice != token) {
+      res.statusCode = 409;
+      res.end();
+      return;
+    }
+    const body = req.body;
 
-  if (!body.names) {
-    res.statusCode = 400;
-    res.end("Body must be of type : {names:[pathString]}");
-    return;
-  }
+    if (!body.names) {
+      res.statusCode = 400;
+      res.end("Body must be of type : {names:[pathString]}");
+      return;
+    }
 
-  if (
-    body.names.filter(
-      (name) => FORBIDDEN_CARACS.some((car) => name.includes(car)).length > 0
-    )
-  ) {
-    res.statusCode = 400;
-    res.end("One or many folders name aren't correct");
-    return;
-  }
+    if (
+      body.names.filter(
+        (name) => FORBIDDEN_CARACS.some((car) => name.includes(car)).length > 0
+      )
+    ) {
+      res.statusCode = 400;
+      res.end("One or many folders name aren't correct");
+      return;
+    }
 
-  const errors = [];
-  let createdFolders = 0;
+    const errors = [];
+    let createdFolders = 0;
 
-  for (const folderName of body.names) {
-    const folderNameFormatted = (
-      folderName[0] == "/" ? folderName.substring(1) : folderName
-    ).replaceAll(" ", "#");
+    for (const folderName of body.names) {
+      const folderNameFormatted = (
+        folderName[0] == "/" ? folderName.substring(1) : folderName
+      ).replaceAll(" ", "#");
 
-    await new Promise((resolve) => {
-      exec("mkdir " + ROOT + folderNameFormatted, (err, stdout, stderr) => {
-        if (err != null) {
-          errors.push(stderr);
-        } else {
-          createdFolders++;
-        }
-        resolve();
+      await new Promise((resolve) => {
+        exec("mkdir " + ROOT + folderNameFormatted, (err, stdout, stderr) => {
+          if (err != null) {
+            errors.push(stderr);
+          } else {
+            createdFolders++;
+          }
+          resolve();
+        });
       });
-    });
-  }
+    }
 
-  if (errors.length > 0) {
-    res.setHeader("Content-Type", "application/json");
-    res.statusCode = 500;
+    if (errors.length > 0) {
+      res.setHeader("Content-Type", "application/json");
+      res.statusCode = 500;
+      res.json({
+        ...errors,
+        createdFolders: createdFolders + "/" + body.names.length,
+      });
+      return;
+    }
+
+    res.statusCode = 200;
     res.json({
-      ...errors,
       createdFolders: createdFolders + "/" + body.names.length,
     });
-    return;
+  } catch (err) {
+    fs.writeFileSync("./lastError", err.toString());
+    res.statusCode = 500;
+    res.end();
   }
-
-  res.statusCode = 200;
-  res.json({
-    createdFolders: createdFolders + "/" + body.names.length,
-  });
 });
 
 ///
 ///Delete folders or files
 ///
 app.delete("/file", async (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+  try {
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-  if (!haveAccess(token)) {
-    res.statusCode = 401;
-    res.end();
-    return;
-  }
-  if (currentDevice != null && currentDevice != token) {
-    res.statusCode = 409;
-    res.end();
-    return;
-  }
-  const body = req.body;
+    if (!haveAccess(token)) {
+      res.statusCode = 401;
+      res.end();
+      return;
+    }
+    if (currentDevice != null && currentDevice != token) {
+      res.statusCode = 409;
+      res.end();
+      return;
+    }
+    const body = req.body;
 
-  if (!body.names || !body.lastTouch || typeof body.names == "string") {
-    res.statusCode = 400;
-    res.end("Body must be of type : {names:[pathString];lastTouch:number}");
-    return;
-  }
+    if (!body.names || !body.lastTouch || typeof body.names == "string") {
+      res.statusCode = 400;
+      res.end("Body must be of type : {names:[pathString];lastTouch:number}");
+      return;
+    }
 
-  let deleted = 0;
-  const errors = [];
+    let deleted = 0;
+    const errors = [];
 
-  for (const fileName of body.names) {
-    const fileNameFormatted = (
-      fileName[0] == "/" ? fileName.substring(1) : fileName
-    ).replaceAll(" ", "#");
+    for (const fileName of body.names) {
+      const fileNameFormatted = (
+        fileName[0] == "/" ? fileName.substring(1) : fileName
+      ).replaceAll(" ", "#");
 
-    await new Promise((resolve) => {
-      exec(
-        "rm -rf " + ROOT + fileNameFormatted.replace(" ", "\\ "),
-        (err, stdout, stderr) => {
-          if (err != null) {
-            errors.push(stderr);
-          } else {
-            deleted++;
+      await new Promise((resolve) => {
+        exec(
+          "rm -rf " + ROOT + fileNameFormatted.replace(" ", "\\ "),
+          (err, stdout, stderr) => {
+            if (err != null) {
+              errors.push(stderr);
+            } else {
+              deleted++;
+            }
+            resolve();
           }
-          resolve();
-        }
-      );
-    });
+        );
+      });
+    }
+    // Delete empty directories
+    exec(`find ${ROOT} -type d -empty -delete`);
 
-    //
-  }
-  // Delete empty directories
-  exec(`find ${ROOT} -type d -empty -delete`);
+    lastTouch = parseInt(body.lastTouch);
 
-  lastTouch = parseInt(body.lastTouch);
+    if (errors.length > 0) {
+      res.setHeader("Content-Type", "application/json");
+      res.statusCode = 500;
+      res.json({
+        ...errors,
+        deleted: deleted + "/" + body.names.length,
+      });
+      return;
+    }
 
-  if (errors.length > 0) {
-    res.setHeader("Content-Type", "application/json");
-    res.statusCode = 500;
+    res.statusCode = 200;
     res.json({
-      ...errors,
       deleted: deleted + "/" + body.names.length,
     });
-    return;
+  } catch (err) {
+    fs.writeFileSync("./lastError", err.toString());
+    res.statusCode = 500;
+    res.end();
   }
-
-  res.statusCode = 200;
-  res.json({
-    deleted: deleted + "/" + body.names.length,
-  });
 });
 
 ///
 /// Get folder content recursively
 ///
 app.post("/folder", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+  try {
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-  if (!haveAccess(token)) {
-    res.statusCode = 401;
+    if (!haveAccess(token)) {
+      res.statusCode = 401;
+      res.end();
+      return;
+    }
+
+    if (currentDevice != null && currentDevice != token) {
+      res.statusCode = 409;
+      res.end();
+      return;
+    }
+    const body = req.body;
+
+    if (!body.name) {
+      res.statusCode = 400;
+      res.end(
+        "Body must be of type : {name:pathString}, received :",
+        body?.name
+      );
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/json");
+    // Run shell command
+
+    const allFiles = getAllFiles(ROOT + body.name.replaceAll(" ", "#"), []);
+
+    res.statusCode = 200;
+    res.json(allFiles);
+  } catch (err) {
+    fs.writeFileSync("./lastError", err.toString());
+    res.statusCode = 500;
     res.end();
-    return;
   }
-
-  if (currentDevice != null && currentDevice != token) {
-    res.statusCode = 409;
-    res.end();
-    return;
-  }
-  const body = req.body;
-
-  if (!body.name) {
-    res.statusCode = 400;
-    res.end("Body must be of type : {name:pathString}, received :", body?.name);
-    return;
-  }
-
-  res.setHeader("Content-Type", "application/json");
-  // Run shell command
-
-  const allFiles = getAllFiles(ROOT + body.name.replaceAll(" ", "#"), []);
-
-  res.statusCode = 200;
-  res.json(allFiles);
 });
 
 ///
@@ -272,96 +309,102 @@ app.post(
     tempFileDir: "/home/luc/Documents/Custom_Cloud/CloudEnv/",
   }),
   async (req, res) => {
-    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+    try {
+      const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-    if (!haveAccess(token)) {
-      resetTempFiles(ROOT);
+      if (!haveAccess(token)) {
+        resetTempFiles(ROOT);
 
-      res.statusCode = 401;
-      res.end();
-      return;
-    }
-    if (currentDevice != null && currentDevice != token) {
-      resetTempFiles(ROOT);
-      res.statusCode = 409;
-      res.end();
-      return;
-    }
+        res.statusCode = 401;
+        res.end();
+        return;
+      }
+      if (currentDevice != null && currentDevice != token) {
+        resetTempFiles(ROOT);
+        res.statusCode = 409;
+        res.end();
+        return;
+      }
 
-    const files = req.files;
-    const location = req.body.location?.replaceAll(" ", "#");
-    const bodyLastTouch = req.body.lastTouch;
-    if (!files || location == null || bodyLastTouch == null) {
-      resetTempFiles(ROOT);
+      const files = req.files;
+      const location = req.body.location?.replaceAll(" ", "#");
+      const bodyLastTouch = req.body.lastTouch;
+      if (!files || location == null || bodyLastTouch == null) {
+        resetTempFiles(ROOT);
 
-      res.statusCode = 400;
-      res.end(
-        "Body must be of type : {location:pathString;lasTouch:number} and must have files"
-      );
-      return;
-    }
+        res.statusCode = 400;
+        res.end(
+          "Body must be of type : {location:pathString;lasTouch:number} and must have files"
+        );
+        return;
+      }
 
-    if (
-      Object.values(files).filter((f) =>
-        FORBIDDEN_CARACS.some((car) => f.name.includes(car))
-      ).length > 0
-    ) {
-      resetTempFiles(ROOT);
+      if (
+        Object.values(files).filter((f) =>
+          FORBIDDEN_CARACS.some((car) => f.name.includes(car))
+        ).length > 0
+      ) {
+        resetTempFiles(ROOT);
 
-      res.statusCode = 400;
-      res.end("One or many files name are't correct");
-      return;
-    }
+        res.statusCode = 400;
+        res.end("One or many files name are't correct");
+        return;
+      }
 
-    const parentPath = (ROOT + location + "/").replaceAll("//", "/");
+      const parentPath = (ROOT + location + "/").replaceAll("//", "/");
 
-    const errors = [];
-    let insertedFiles = 0;
+      const errors = [];
+      let insertedFiles = 0;
 
-    const lastTouchDate = new Date(parseInt(bodyLastTouch));
+      const lastTouchDate = new Date(parseInt(bodyLastTouch));
 
-    // Create parent directory in case of doesn't exist
-    execSync(`mkdir -p ${parentPath}`);
+      // Create parent directory in case of doesn't exist
+      execSync(`mkdir -p ${parentPath}`);
 
-    for (const file of Object.values(files)) {
-      const realName = file.name;
+      for (const file of Object.values(files)) {
+        const realName = file.name;
 
-      const tempPath = formatPathWithSpaces(file.tempFilePath);
-      const newPath = formatPathWithSpaces(parentPath + realName);
+        const tempPath = formatPathWithSpaces(file.tempFilePath);
+        const newPath = formatPathWithSpaces(parentPath + realName);
 
-      await new Promise((resolve) => {
-        exec(`mv ${tempPath} ${newPath}`, (err, _, stderr) => {
-          fs.utimesSync(newPath, lastTouchDate, lastTouchDate);
-          if (err == null) {
-            insertedFiles += 1;
-          } else {
-            errors.push(stderr);
-          }
-          resolve();
+        await new Promise((resolve) => {
+          exec(`mv ${tempPath} ${newPath}`, (err, _, stderr) => {
+            fs.utimesSync(newPath, lastTouchDate, lastTouchDate);
+            if (err == null) {
+              insertedFiles += 1;
+            } else {
+              errors.push(stderr);
+            }
+            resolve();
+          });
         });
-      });
-    }
-    if (errors.length > 0) {
-      resetTempFiles(ROOT);
+      }
+      if (errors.length > 0) {
+        resetTempFiles(ROOT);
 
-      res.setHeader("Content-Type", "application/json");
-      res.statusCode = 500;
+        res.setHeader("Content-Type", "application/json");
+        res.statusCode = 500;
+        res.json({
+          ...errors,
+          insertedFiles: insertedFiles + "/" + Object.keys(files).length,
+        });
+        return;
+      }
+
+      // Set lastTouch
+      lastTouch = parseInt(bodyLastTouch);
+
+      res.statusCode = 200;
       res.json({
-        ...errors,
         insertedFiles: insertedFiles + "/" + Object.keys(files).length,
       });
+
       return;
+    } catch (err) {
+      fs.writeFileSync("./lastError", err.toString());
+      res.statusCode = 500;
+      res.end();
     }
-
-    // Set lastTouch
-    lastTouch = parseInt(bodyLastTouch);
-
-    res.statusCode = 200;
-    res.json({
-      insertedFiles: insertedFiles + "/" + Object.keys(files).length,
-    });
-
-    return;
   }
 );
 
@@ -369,35 +412,41 @@ app.post(
 // Get file
 ////
 app.post("/file-download", (req, res) => {
-  const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
+  try {
+    const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
-  if (!haveAccess(token)) {
-    res.statusCode = 401;
+    if (!haveAccess(token)) {
+      res.statusCode = 401;
+      res.end();
+      return;
+    }
+    if (currentDevice != null && currentDevice != token) {
+      res.statusCode = 409;
+      res.end();
+      return;
+    }
+    const body = req.body;
+
+    if (!body.name) {
+      res.statusCode = 400;
+      res.end(
+        "Body must be of type : {name:pathString}, received :" +
+          JSON.stringify(body)
+      );
+      return;
+    }
+
+    const filePath = (ROOT + body.name).replaceAll(" ", "#");
+
+    const fileStats = fs.statSync(filePath);
+
+    res.statusMessage = Math.max(fileStats.mtime, fileStats.ctime);
+    res.sendFile(filePath);
+  } catch (err) {
+    fs.writeFileSync("./lastError", err.toString());
+    res.statusCode = 500;
     res.end();
-    return;
   }
-  if (currentDevice != null && currentDevice != token) {
-    res.statusCode = 409;
-    res.end();
-    return;
-  }
-  const body = req.body;
-
-  if (!body.name) {
-    res.statusCode = 400;
-    res.end(
-      "Body must be of type : {name:pathString}, received :" +
-        JSON.stringify(body)
-    );
-    return;
-  }
-
-  const filePath = (ROOT + body.name).replaceAll(" ", "#");
-
-  const fileStats = fs.statSync(filePath);
-
-  res.statusMessage = Math.max(fileStats.mtime, fileStats.ctime);
-  res.sendFile(filePath);
 });
 
 app.listen(port, () => {
