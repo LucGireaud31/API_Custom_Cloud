@@ -363,7 +363,7 @@ app.post(
 ////
 // Get file
 ////
-app.get("/file", (req, res) => {
+app.post("/file-download", (req, res) => {
   const token = req.headers?.authorization?.split("Bearer ")[1] ?? " ";
 
   if (!haveAccess(token)) {
