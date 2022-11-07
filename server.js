@@ -15,7 +15,7 @@ dotenv.config({ path: "./.env" });
 app.use(bodyParser.json({ limit: "10gb" }));
 
 const ROOT = process.env.ROOT;
-const FORBIDDEN_CARACS = ["|", "\n", "\\"];
+const FORBIDDEN_CARACS = ["|", "&", "\n", "\\"];
 const TRANSACTION_TIMEOUT = 1_800_000; // 30 min
 
 // Variables
@@ -176,7 +176,7 @@ app.delete("/file", async (req, res) => {
   }
   const body = req.body;
 
-  if (!body.names || !body.lastTouch) {
+  if (!body.names || !body.lastTouch || typeof body.names == "string") {
     res.statusCode = 400;
     res.end("Body must be of type : {names:[pathString];lastTouch:number}");
     return;
@@ -190,14 +190,17 @@ app.delete("/file", async (req, res) => {
       fileName[0] == "/" ? fileName.substring(1) : fileName;
 
     await new Promise((resolve) => {
-      exec("rm -rf " + ROOT + fileNameFormatted, (err, stdout, stderr) => {
-        if (err != null) {
-          errors.push(stderr);
-        } else {
-          deleted++;
+      exec(
+        "rm -rf " + ROOT + fileNameFormatted.replace(" ", "\\ "),
+        (err, stdout, stderr) => {
+          if (err != null) {
+            errors.push(stderr);
+          } else {
+            deleted++;
+          }
+          resolve();
         }
-        resolve();
-      });
+      );
     });
 
     //
@@ -261,7 +264,7 @@ app.post("/folder", (req, res) => {
 ///Create or update files
 ///
 app.post(
-  "/file",
+  "/file-upload",
   fileUpload({
     useTempFiles: true,
     tempFileDir: "/home/luc/Documents/Custom_Cloud/CloudEnv/",
@@ -286,7 +289,6 @@ app.post(
     const files = req.files;
     const location = req.body.location;
     const bodyLastTouch = req.body.lastTouch;
-
     if (!files || location == null || bodyLastTouch == null) {
       resetTempFiles(ROOT);
 
@@ -312,8 +314,9 @@ app.post(
     const parentPath = (ROOT + location + "/").replaceAll("//", "/");
 
     const errors = [];
-
     let insertedFiles = 0;
+
+    const lastTouchDate = new Date(parseInt(bodyLastTouch));
 
     // Create parent directory in case of doesn't exist
     execSync(`mkdir -p ${parentPath}`);
@@ -326,7 +329,7 @@ app.post(
 
       await new Promise((resolve) => {
         exec(`mv ${tempPath} ${newPath}`, (err, _, stderr) => {
-          fs.utimesSync(newPath, bodyLastTouch, bodyLastTouch);
+          fs.utimesSync(newPath, lastTouchDate, lastTouchDate);
           if (err == null) {
             insertedFiles += 1;
           } else {
@@ -380,11 +383,21 @@ app.post("/file-download", (req, res) => {
 
   if (!body.name) {
     res.statusCode = 400;
-    res.end("Body must be of type : {name:pathString}");
+    res.end(
+      "Body must be of type : {name:pathString}, received :" +
+        JSON.stringify(body)
+    );
     return;
   }
 
-  res.sendFile((ROOT + body.name).replaceAll("\\ ", " ").replaceAll("//", "/"));
+  const filePath = (ROOT + body.name)
+    .replaceAll("\\ ", " ")
+    .replaceAll("//", "/");
+
+  const fileStats = fs.statSync(filePath);
+
+  res.statusMessage = Math.max(fileStats.mtime, fileStats.ctime);
+  res.sendFile(filePath);
 });
 
 app.listen(port, () => {
