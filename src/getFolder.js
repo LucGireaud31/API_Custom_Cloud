@@ -22,7 +22,7 @@ function getAllFiles(dirPath, arrayOfFiles) {
 
 function getFileLastDate(filePath) {
   const stats = fs.statSync(filePath);
-  return Math.max(stats.atime, stats.mtime); // Max between lastChange data or lastChange metadata file (fileName, chmod)
+  return Math.round(stats.mtime);
 }
 
 module.exports = { getAllFiles };

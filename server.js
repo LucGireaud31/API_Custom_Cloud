@@ -451,7 +451,7 @@ app.post("/file-download", (req, res) => {
 
     const fileStats = fs.statSync(filePath);
 
-    res.statusMessage = Math.max(fileStats.mtime, fileStats.ctime);
+    res.statusMessage = Math.round(fileStats.mtime);
     res.sendFile(filePath);
   } catch (err) {
     fs.writeFileSync("./lastError", "post /file-download " + err.toString());
