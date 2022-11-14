@@ -60,7 +60,7 @@ app.post("/beginTransaction", (req, res) => {
 });
 
 ///
-/// End transaction[1] ?? " "
+/// End transaction
 ///
 app.post("/endTransaction", (req, res) => {
   try {
@@ -202,7 +202,7 @@ app.delete("/file", async (req, res) => {
     }
     const body = req.body;
 
-    if (!body.names || !body.lastTouch || typeof body.names == "string") {
+    if (!body.names || typeof body.names == "string") {
       res.statusCode = 400;
       res.end("Body must be of type : {names:[pathString];lastTouch:number}");
       return;
@@ -232,8 +232,6 @@ app.delete("/file", async (req, res) => {
     }
     // Delete empty directories
     exec(`find ${ROOT} -type d -empty -delete`);
-
-    lastTouch = parseInt(body.lastTouch);
 
     if (errors.length > 0) {
       res.setHeader("Content-Type", "application/json");
@@ -341,19 +339,13 @@ app.post(
       const files = req.files;
       const location = req.body.location?.replaceAll(" ", "#");
       const bodyLastTouch = req.body.lastTouch;
-      const serverLastTouch = req.body.serverLastTouch;
 
-      if (
-        !files ||
-        location == null ||
-        bodyLastTouch == null ||
-        serverLastTouch == null
-      ) {
+      if (!files || location == null || bodyLastTouch == null) {
         resetTempFiles(ROOT);
 
         res.statusCode = 400;
         res.end(
-          "Body must be of type : {location:pathString;lastTouch:number;serverLastTouch:number} and must have files"
+          "Body must be of type : {location:pathString;lastTouch:number} and must have files"
         );
         return;
       }
@@ -375,7 +367,7 @@ app.post(
       const errors = [];
       let insertedFiles = 0;
 
-      const lastTouchDate = new Date(parseInt(serverLastTouch));
+      const lastTouchDate = new Date(parseInt(bodyLastTouch));
 
       // Create parent directory in case of doesn't exist
       execSync(`mkdir -p ${parentPath}`);
@@ -411,7 +403,7 @@ app.post(
       }
 
       // Set lastTouch
-      lastTouch = parseInt(bodyLastTouch);
+      handleSetLastTouch(parseInt(bodyLastTouch));
 
       res.statusCode = 200;
       res.json({
@@ -471,3 +463,11 @@ app.post("/file-download", (req, res) => {
 app.listen(port, () => {
   console.log(`App listening on port ${port}`);
 });
+
+/// UTILS
+
+function handleSetLastTouch(newTouch) {
+  if (lastTouch < newTouch) {
+    lastTouch = newTouch;
+  }
+}

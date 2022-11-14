@@ -1,1 +1,1 @@
-post /folder :ReferenceError: allFiles is not defined
+post /folder getAllFiles:Error: ENOENT: no such file or directory, scandir '/home/luc/Documents/Custom_Cloud/CloudEnv/Test'
